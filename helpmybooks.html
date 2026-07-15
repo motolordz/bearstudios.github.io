@@ -63,6 +63,13 @@ nav{
 .sw{max-width:1140px;margin:0 auto;padding:0 5vw}
 .section{padding:5.5rem 0}
 
+/* VIDEO DEMO */
+.video-demo{background:var(--navy);padding:1.6rem 0}
+.video-demo-el{
+  display:block;width:100%;max-width:960px;margin:0 auto;border-radius:16px;
+  box-shadow:0 20px 50px rgba(10,28,94,0.35);border:1px solid rgba(255,255,255,0.12);
+}
+
 /* HERO */
 .hero{
   padding:4.5rem 0 3.5rem;position:relative;overflow:hidden;
@@ -246,6 +253,16 @@ footer a{color:var(--blue);text-decoration:none;font-weight:600}
     <a href="#enquire" class="nav-cta">Enquire</a>
   </div>
 </nav>
+
+<!-- VIDEO DEMO -->
+<section class="video-demo">
+  <div class="sw">
+    <video class="video-demo-el" poster="helpmybooks-demo-poster.jpg" controls playsinline preload="metadata">
+      <source src="helpmybooks-demo.mp4" type="video/mp4">
+      Your browser doesn't support embedded video. <a href="helpmybooks-demo.mp4">Download the demo</a>.
+    </video>
+  </div>
+</section>
 
 <!-- HERO -->
 <section class="hero">
