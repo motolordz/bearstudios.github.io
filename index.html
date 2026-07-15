@@ -944,6 +944,38 @@ footer{
 .lr-foot-a{font-family:var(--font-h);font-size:.75rem;color:var(--light);font-weight:500}
 .lr-foot-b{font-family:var(--font-m);font-size:.45rem;letter-spacing:.12em;text-transform:uppercase;color:var(--dim)}
 
+/* === SOFTWARE & IP === */
+.sw-lead{font-size:0.88rem;color:var(--mid);line-height:1.8;font-weight:300;max-width:640px}
+.sw-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:1.4rem;margin-top:3rem}
+.sw-card{
+  background:var(--surface);border:1px solid var(--edge);padding:2.2rem 1.8rem;
+  display:flex;flex-direction:column;gap:1rem;transition:border-color 0.25s,transform 0.25s;
+}
+.sw-card:hover{border-color:rgba(200,146,42,0.4);transform:translateY(-4px)}
+.sw-card.featured{border-color:var(--gold);background:linear-gradient(180deg,rgba(200,146,42,0.06),transparent)}
+.sw-badge{
+  align-self:flex-start;font-family:var(--font-m);font-size:0.55rem;letter-spacing:0.18em;
+  text-transform:uppercase;color:var(--gold);border:1px solid rgba(200,146,42,0.35);
+  padding:0.3rem 0.7rem;
+}
+.sw-card-h{font-family:var(--font-h);font-size:1.25rem;color:var(--white);letter-spacing:0.02em}
+.sw-card-p{font-size:0.8rem;color:var(--dim);line-height:1.7;font-weight:300;flex-grow:1}
+.sw-price{font-family:var(--font-m);font-size:1.4rem;color:var(--gold3)}
+.sw-price span{font-size:0.6rem;color:var(--mid);letter-spacing:0.1em;text-transform:uppercase;margin-left:0.4rem}
+.sw-feat{list-style:none;display:flex;flex-direction:column;gap:0.5rem;margin:0.4rem 0}
+.sw-feat li{font-size:0.74rem;color:var(--text);display:flex;gap:0.6rem;align-items:baseline}
+.sw-feat li::before{content:'—';color:var(--gold)}
+.sw-catalog{margin-top:4.5rem}
+.sw-catalog-h{font-family:var(--font-h);font-size:1.1rem;color:var(--white);margin-bottom:1.6rem;letter-spacing:0.02em}
+.sw-list{display:grid;grid-template-columns:repeat(2,1fr);gap:1px;background:var(--edge);border:1px solid var(--edge)}
+.sw-item{background:var(--black);padding:1.4rem 1.6rem;display:flex;justify-content:space-between;align-items:center;gap:1rem}
+.sw-item-name{font-family:var(--font-b);font-size:0.85rem;color:var(--light);font-weight:500}
+.sw-item-tag{font-family:var(--font-m);font-size:0.6rem;letter-spacing:0.14em;text-transform:uppercase;color:var(--silver)}
+.sw-item-status{font-family:var(--font-m);font-size:0.6rem;letter-spacing:0.1em;text-transform:uppercase;padding:0.25rem 0.6rem;border:1px solid var(--edge2);color:var(--cyan2);white-space:nowrap}
+@media (max-width:900px){
+  .sw-grid{grid-template-columns:1fr}
+  .sw-list{grid-template-columns:1fr}
+}
 </style>
 </head>
 <body>
@@ -965,6 +997,7 @@ footer{
   <a href="#persian-museum" onclick="cm()">Persian Museum</a>
   <a href="#ottoman-museum" onclick="cm()">Ottoman Museum</a>
   <a href="#luxury-residence" onclick="cm()">Luxury Residence</a>
+  <a href="#software-ip" onclick="cm()">Software &amp; IP</a>
   <a href="#investor" onclick="cm()">Investors</a>
   <a href="#contact" onclick="cm()">Contact</a>
 </div>
@@ -991,6 +1024,7 @@ footer{
     <li><a href="#persian-museum">Persian Museum</a></li>
     <li><a href="#ottoman-museum">Ottoman Museum</a></li>
     <li><a href="#luxury-residence">Luxury Residence</a></li>
+    <li><a href="#software-ip">Software &amp; IP</a></li>
     <li><a href="#investor" class="nav-cta">Investors</a></li>
   </ul>
   <button class="ham" id="ham"><span></span><span></span><span></span></button>
@@ -2822,6 +2856,90 @@ footer{
       </div>
       <a href="#contact" class="btn-p rv" style="display:inline-block;font-size:0.7rem;padding:0.9rem 2.4rem">Submit a Serious Enquiry</a>
       <div class="legal rv">DISCLAIMER: Bear Studios makes no representations regarding financial value or investment returns of any digital assets. Nothing on this website constitutes financial, investment, or legal advice. NFTs, crypto domains and digital assets are speculative and carry significant risk. Bear Studios is not a financial services provider and is not regulated as such in Australia or any other jurisdiction.</div>
+    </div>
+  </div>
+</section>
+
+<!-- SOFTWARE & IP -->
+<section id="software-ip" class="section" style="padding:8rem 0;background:var(--ink);border-top:1px solid var(--edge)">
+  <div class="sw">
+    <div class="stag rv">Software &amp; Intellectual Property</div>
+    <h2 class="sh rv">Tools we've built.<br><em>IP you can own.</em></h2>
+    <p class="sw-lead rv">Bear Studios develops software, brand systems, and creative tooling in-house. Some of it we license out. Some of it — including full source, brand, and IP — is available for outright acquisition. Below is a starting point; every listing is open to negotiation.</p>
+
+    <div class="sw-grid">
+      <div class="sw-card rv">
+        <span class="sw-badge">License to Use</span>
+        <div class="sw-card-h">Single Product License</div>
+        <p class="sw-card-p">Use one piece of Bear Studios software or a creative tool in your own product or business. Source access, deployment rights, and update support included for the license term.</p>
+        <ul class="sw-feat">
+          <li>Commercial use rights</li>
+          <li>Source code access</li>
+          <li>12 months of updates</li>
+        </ul>
+        <div class="sw-price">POA <span>Enquire</span></div>
+        <a href="#contact" class="btn-o" style="text-align:center">Enquire About Licensing</a>
+      </div>
+
+      <div class="sw-card featured rv">
+        <span class="sw-badge">Full Acquisition</span>
+        <div class="sw-card-h">Complete IP Transfer</div>
+        <p class="sw-card-p">Full ownership handover — source code, brand assets, domains, documentation, and all associated intellectual property. We step away entirely; you own it outright.</p>
+        <ul class="sw-feat">
+          <li>Full copyright &amp; IP assignment</li>
+          <li>Source, assets &amp; documentation</li>
+          <li>Optional handover support</li>
+        </ul>
+        <div class="sw-price">POA <span>Serious enquiries</span></div>
+        <a href="#contact" class="btn-p" style="text-align:center">Enquire About Acquisition</a>
+      </div>
+
+      <div class="sw-card rv">
+        <span class="sw-badge">Bespoke</span>
+        <div class="sw-card-h">Custom Build &amp; Consulting</div>
+        <p class="sw-card-p">Need something built from scratch — a tool, a platform, a brand system? Bear Studios takes on select custom development and creative-technical projects.</p>
+        <ul class="sw-feat">
+          <li>Scoped project work</li>
+          <li>Design + development</li>
+          <li>Ownership terms negotiated upfront</li>
+        </ul>
+        <div class="sw-price">POA <span>By project</span></div>
+        <a href="#contact" class="btn-o" style="text-align:center">Discuss a Build</a>
+      </div>
+    </div>
+
+    <div class="sw-catalog rv">
+      <div class="sw-catalog-h">Current Catalog</div>
+      <div class="sw-list">
+        <div class="sw-item">
+          <div>
+            <div class="sw-item-name">Bear Studios Site Framework</div>
+            <div class="sw-item-tag">Web / HTML+JS</div>
+          </div>
+          <div class="sw-item-status">Licensable</div>
+        </div>
+        <div class="sw-item">
+          <div>
+            <div class="sw-item-name">Digital Asset Portfolio Template</div>
+            <div class="sw-item-tag">Web / Design System</div>
+          </div>
+          <div class="sw-item-status">Licensable</div>
+        </div>
+        <div class="sw-item">
+          <div>
+            <div class="sw-item-name">MB3AR Music Catalog &amp; Masters</div>
+            <div class="sw-item-tag">Audio / IP</div>
+          </div>
+          <div class="sw-item-status">Enquire</div>
+        </div>
+        <div class="sw-item">
+          <div>
+            <div class="sw-item-name">Domain Portfolio (400+ assets)</div>
+            <div class="sw-item-tag">Web3 / Domains</div>
+          </div>
+          <div class="sw-item-status">See Domains</div>
+        </div>
+      </div>
     </div>
   </div>
 </section>
