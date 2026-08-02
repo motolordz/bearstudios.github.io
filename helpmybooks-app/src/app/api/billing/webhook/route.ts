@@ -51,6 +51,7 @@ export async function POST(request: NextRequest) {
     const update: Record<string, unknown> = {
       stripe_subscription_id: obj.id,
       status: obj.status || "cancelled",
+      cancel_at_period_end: !!obj.cancel_at_period_end,
     };
     if (obj.current_period_end) {
       update.current_period_end = new Date(Number(obj.current_period_end) * 1000).toISOString();

@@ -22,6 +22,14 @@ export default function DashboardPage() {
   const [adding, setAdding] = useState(false);
   const [newTxn, setNewTxn] = useState({ client_id: "", date: "", amount: "", merchant: "", description: "" });
   const [whoAmI, setWhoAmI] = useState({ orgName: "", fullName: "" });
+  const [xeroStatus, setXeroStatus] = useState<{ connected: boolean; tenantName: string | null }>({ connected: false, tenantName: null });
+
+  function loadXeroStatus() {
+    apiFetch("/api/xero/status")
+      .then((r) => r.json())
+      .then((d) => setXeroStatus({ connected: !!d.connected, tenantName: d.tenantName ?? null }))
+      .catch(() => {});
+  }
 
   function load() {
     setLoading(true);
@@ -40,6 +48,7 @@ export default function DashboardPage() {
     apiFetch("/api/org")
       .then((r) => r.json())
       .then((d) => setWhoAmI({ orgName: d.organisation?.name ?? "", fullName: d.full_name ?? "" }));
+    loadXeroStatus();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -254,10 +263,18 @@ export default function DashboardPage() {
               <Link href="/clients" className="text-ink/70 hover:text-teal">Clients</Link>
               <Link href="/settings" className="text-ink/70 hover:text-teal">Settings</Link>
             </nav>
-            <button onClick={connectXero} className="btn-secondary !px-4 !py-2 text-sm">Connect Xero</button>
-            <button onClick={syncXero} disabled={syncing} className="btn-secondary !px-4 !py-2 text-sm">
-              {syncing ? "Syncing…" : "Sync Xero"}
-            </button>
+            {xeroStatus.connected ? (
+              <>
+                <span className="hidden rounded-full bg-teal-light px-3 py-1 text-xs font-medium text-teal-dark sm:inline">
+                  Xero: {xeroStatus.tenantName ?? "connected"}
+                </span>
+                <button onClick={syncXero} disabled={syncing} className="btn-secondary !px-4 !py-2 text-sm">
+                  {syncing ? "Syncing…" : "Sync Xero"}
+                </button>
+              </>
+            ) : (
+              <button onClick={connectXero} className="btn-secondary !px-4 !py-2 text-sm">Connect Xero</button>
+            )}
             <button onClick={handleLogout} className="text-sm font-medium text-ink/70 hover:text-teal">
               Log out
             </button>

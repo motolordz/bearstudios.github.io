@@ -1,13 +1,20 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireUser, isAuthFailure, canManageTeam } from "@/lib/serverAuth";
+import { hasStripeConfig, priceIdForPlan, createCheckoutSession, changeSubscriptionPrice, type BillingPlan } from "@/lib/stripe";
 
 export const dynamic = "force-dynamic";
 
+const PLANS: BillingPlan[] = ["starter", "growth", "practice"];
+
 /**
- * POST — create a Stripe Checkout session for the caller's organisation.
+ * POST { plan } — start a new subscription via Stripe Checkout, or (if the
+ * org already has an active subscription) change its plan directly.
  * Owner/admin only. Ported from v3.3 (firms → organisations).
  */
 export async function POST(req: NextRequest) {
+  const body = await req.json().catch(() => ({}));
+  const plan: BillingPlan = PLANS.includes(body?.plan) ? body.plan : "starter";
+
   const auth = await requireUser(req);
   if (isAuthFailure(auth)) return NextResponse.json({ error: auth.error }, { status: auth.status });
   if (auth.mode === "mock") {
@@ -21,51 +28,39 @@ export async function POST(req: NextRequest) {
   }
 
   const orgId = auth.profile.organisation_id;
-  let { data: account } = await auth.supabase
-    .from("billing_accounts")
-    .select("*")
-    .eq("organisation_id", orgId)
-    .maybeSingle();
+  let { data: account } = await auth.supabase.from("billing_accounts").select("*").eq("organisation_id", orgId).maybeSingle();
   if (!account) {
-    const { data: created, error } = await auth.supabase
-      .from("billing_accounts")
-      .insert({ organisation_id: orgId })
-      .select()
-      .single();
+    const { data: created, error } = await auth.supabase.from("billing_accounts").insert({ organisation_id: orgId }).select().single();
     if (error) return NextResponse.json({ error: error.message }, { status: 400 });
     account = created;
   }
 
-  if (!process.env.STRIPE_SECRET_KEY?.trim() || !process.env.STRIPE_PRICE_ID?.trim()) {
+  const priceId = priceIdForPlan(plan);
+  if (!hasStripeConfig() || !priceId) {
     return NextResponse.json(
-      { mode: "no-stripe", message: "Add STRIPE_SECRET_KEY and STRIPE_PRICE_ID to enable billing." },
+      { mode: "no-stripe", message: `Add STRIPE_SECRET_KEY and a price ID for the "${plan}" plan to enable billing.` },
       { status: 202 }
     );
   }
 
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
-  const params = new URLSearchParams({
-    mode: "subscription",
-    success_url: `${appUrl}/settings?billing=success`,
-    cancel_url: `${appUrl}/settings?billing=cancelled`,
-    "line_items[0][price]": process.env.STRIPE_PRICE_ID,
-    "line_items[0][quantity]": "1",
-    client_reference_id: orgId,
-    "metadata[organisation_id]": orgId,
-  });
-  if (account?.stripe_customer_id) params.set("customer", account.stripe_customer_id);
+  try {
+    // Already an active paid subscription — change the plan in place instead of a new checkout.
+    if (account?.stripe_subscription_id && account.status === "active") {
+      await changeSubscriptionPrice(account.stripe_subscription_id, priceId);
+      await auth.supabase.from("billing_accounts").update({ plan }).eq("organisation_id", orgId);
+      return NextResponse.json({ ok: true, changed: true, plan });
+    }
 
-  const response = await fetch("https://api.stripe.com/v1/checkout/sessions", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${process.env.STRIPE_SECRET_KEY}`,
-      "Content-Type": "application/x-www-form-urlencoded",
-    },
-    body: params,
-  });
-  if (!response.ok) {
-    return NextResponse.json({ error: "Stripe checkout session creation failed" }, { status: 502 });
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
+    const session = await createCheckoutSession({
+      priceId,
+      organisationId: orgId,
+      customerId: account?.stripe_customer_id,
+      successUrl: `${appUrl}/settings?billing=success`,
+      cancelUrl: `${appUrl}/settings?billing=cancelled`,
+    });
+    return NextResponse.json({ url: session.url });
+  } catch (e) {
+    return NextResponse.json({ error: (e as Error).message }, { status: 502 });
   }
-  const session = (await response.json()) as { url: string };
-  return NextResponse.json({ url: session.url });
 }

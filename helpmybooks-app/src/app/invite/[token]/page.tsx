@@ -48,7 +48,7 @@ export default function AcceptInvitePage() {
         <div className="card text-center">
           <h1 className="font-display text-2xl font-semibold">Join the team</h1>
           <p className="mt-2 text-sm text-ink/60">
-            You've been invited to join a practice on HelpMyBooks. Accepting links your
+            You&rsquo;ve been invited to join a practice on HelpMyBooks. Accepting links your
             account to their organisation.
           </p>
           {mockMode && (

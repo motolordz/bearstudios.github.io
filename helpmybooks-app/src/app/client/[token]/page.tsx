@@ -67,6 +67,17 @@ export default function ClientPortalPage({ params }: { params: { token: string }
   );
 }
 
+interface Draft {
+  who: string;
+  what: string;
+  why: string;
+  bp: "business" | "personal" | "mixed";
+}
+
+function draftKey(token: string, transactionId: string) {
+  return `hmb-draft:${token}:${transactionId}`;
+}
+
 function QuestionCard({ token, txn, onDone }: { token: string; txn: Transaction; onDone: () => void }) {
   const [who, setWho] = useState("");
   const [what, setWhat] = useState("");
@@ -76,13 +87,112 @@ function QuestionCard({ token, txn, onDone }: { token: string; txn: Transaction;
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
   const [submitted, setSubmitted] = useState(false);
+  const [skipped, setSkipped] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
   const cameraRef = useRef<HTMLInputElement>(null);
 
+  // Voice note recording
+  const [recording, setRecording] = useState(false);
+  const [voiceBlob, setVoiceBlob] = useState<Blob | null>(null);
+  const [voiceUrl, setVoiceUrl] = useState<string | null>(null);
+  const [voicePath, setVoicePath] = useState<string | null>(null);
+  const [voiceTranscript, setVoiceTranscript] = useState<string | null>(null);
+  const [voiceBusy, setVoiceBusy] = useState(false);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const chunksRef = useRef<Blob[]>([]);
+
+  // Restore a saved draft on mount, and persist changes as the client types.
+  useEffect(() => {
+    try {
+      const raw = window.localStorage.getItem(draftKey(token, txn.id));
+      if (raw) {
+        const d = JSON.parse(raw) as Draft;
+        setWho(d.who ?? "");
+        setWhat(d.what ?? "");
+        setWhy(d.why ?? "");
+        setBp(d.bp ?? "business");
+      }
+    } catch {
+      // ignore corrupt/inaccessible localStorage
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [token, txn.id]);
+
+  useEffect(() => {
+    if (submitted) return;
+    if (!who && !what && !why) return;
+    try {
+      window.localStorage.setItem(draftKey(token, txn.id), JSON.stringify({ who, what, why, bp }));
+    } catch {
+      // ignore
+    }
+  }, [who, what, why, bp, submitted, token, txn.id]);
+
+  function clearDraft() {
+    try {
+      window.localStorage.removeItem(draftKey(token, txn.id));
+    } catch {
+      // ignore
+    }
+  }
+
   const money = new Intl.NumberFormat("en-AU", { style: "currency", currency: "AUD" }).format(Math.abs(txn.amount));
 
+  async function startRecording() {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      chunksRef.current = [];
+      const recorder = new MediaRecorder(stream);
+      recorder.ondataavailable = (e) => {
+        if (e.data.size > 0) chunksRef.current.push(e.data);
+      };
+      recorder.onstop = () => {
+        stream.getTracks().forEach((t) => t.stop());
+        const blob = new Blob(chunksRef.current, { type: recorder.mimeType || "audio/webm" });
+        setVoiceBlob(blob);
+        setVoiceUrl(URL.createObjectURL(blob));
+      };
+      mediaRecorderRef.current = recorder;
+      recorder.start();
+      setRecording(true);
+    } catch {
+      setMsg("Couldn't access your microphone — check your browser's permission settings.");
+    }
+  }
+
+  function stopRecording() {
+    mediaRecorderRef.current?.stop();
+    setRecording(false);
+  }
+
+  function discardVoice() {
+    setVoiceBlob(null);
+    setVoiceUrl(null);
+    setVoicePath(null);
+    setVoiceTranscript(null);
+  }
+
+  async function uploadVoice(): Promise<{ path: string | null; transcript: string | null }> {
+    if (!voiceBlob) return { path: null, transcript: null };
+    setVoiceBusy(true);
+    const form = new FormData();
+    form.append("token", token);
+    form.append("transaction_id", txn.id);
+    form.append("file", voiceBlob, `voice-note.${(voiceBlob.type.split("/")[1] || "webm").split(";")[0]}`);
+    const res = await fetch("/api/voice/upload", { method: "POST", body: form });
+    const d = await res.json().catch(() => ({}));
+    setVoiceBusy(false);
+    setVoicePath(d.voice_note_path ?? null);
+    setVoiceTranscript(d.transcript ?? null);
+    return { path: d.voice_note_path ?? null, transcript: d.transcript ?? null };
+  }
+
   async function submit() {
-    if (!who.trim() || !what.trim()) {
+    if (!who.trim() && !what.trim() && !voiceBlob) {
+      setMsg("Type a quick answer or record a voice note — whichever's easier.");
+      return;
+    }
+    if (!voiceBlob && (!who.trim() || !what.trim())) {
       setMsg("Who and What are the two we really need — a few words is fine.");
       return;
     }
@@ -100,6 +210,9 @@ function QuestionCard({ token, txn, onDone }: { token: string; txn: Transaction;
       receiptPath = upData.receipt_path ?? null;
     }
 
+    let voice = { path: voicePath, transcript: voiceTranscript };
+    if (voiceBlob && !voicePath) voice = await uploadVoice();
+
     const res = await fetch("/api/answers/submit", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -111,6 +224,8 @@ function QuestionCard({ token, txn, onDone }: { token: string; txn: Transaction;
         why,
         business_or_personal: bp,
         receipt_path: receiptPath,
+        voice_note_path: voice.path,
+        voice_transcript: voice.transcript,
         merchant: txn.merchant,
         description: txn.description,
         amount: txn.amount,
@@ -122,12 +237,29 @@ function QuestionCard({ token, txn, onDone }: { token: string; txn: Transaction;
 
     if (res.ok || res.status === 202) {
       setSubmitted(true);
+      clearDraft();
       const cat = d?.ai?.suggested_category;
       setMsg(cat ? `Thanks! Filed as “${cat}”. ✅` : "Thanks! Your bookkeeper has your answer. ✅");
       setTimeout(onDone, 1800);
     } else {
       setMsg(d.error ?? "That didn't go through — please try again.");
     }
+  }
+
+  async function skip() {
+    setSkipped(true);
+    fetch("/api/questions/skip", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ token, transaction_id: txn.id }),
+    }).catch(() => {});
+    setTimeout(onDone, 400);
+  }
+
+  if (skipped) {
+    return (
+      <div className="card text-sm text-ink/60">Skipped for now — it&rsquo;ll be here next time you check in.</div>
+    );
   }
 
   return (
@@ -207,22 +339,37 @@ function QuestionCard({ token, txn, onDone }: { token: string; txn: Transaction;
             <button type="button" onClick={() => fileRef.current?.click()} className="btn-secondary !px-4 !py-2 text-sm">
               📎 Attach file
             </button>
-            <button
-              type="button"
-              onClick={() => setMsg("Voice notes are coming soon — for now, a few typed words works great.")}
-              className="btn-secondary !px-4 !py-2 text-sm opacity-70"
-              aria-label="Voice note (coming soon)"
-            >
-              🎙️ Voice note
-            </button>
+            {!voiceUrl && (
+              <button
+                type="button"
+                onClick={recording ? stopRecording : startRecording}
+                className={`btn-secondary !px-4 !py-2 text-sm ${recording ? "!bg-gum !text-white" : ""}`}
+              >
+                {recording ? "⏹ Stop recording" : "🎙️ Voice note"}
+              </button>
+            )}
           </div>
           {receipt && <p className="text-xs text-ink/60">Attached: {receipt.name}</p>}
+          {voiceUrl && (
+            <div className="flex items-center gap-2 rounded-lg border border-ink/15 px-3 py-2">
+              <audio controls src={voiceUrl} className="h-8 grow" />
+              <button type="button" onClick={discardVoice} className="text-xs text-red-600 hover:underline">
+                Remove
+              </button>
+            </div>
+          )}
+          {voiceBusy && <p className="text-xs text-ink/50">Uploading voice note…</p>}
 
           {msg && <p className="text-sm text-gum">{msg}</p>}
 
-          <button onClick={submit} disabled={busy} className="btn-primary w-full">
-            {busy ? "Sending…" : "Send answer"}
-          </button>
+          <div className="flex gap-2">
+            <button onClick={submit} disabled={busy} className="btn-primary flex-1">
+              {busy ? "Sending…" : "Send answer"}
+            </button>
+            <button type="button" onClick={skip} disabled={busy} className="btn-secondary">
+              Skip for now
+            </button>
+          </div>
         </div>
       )}
     </div>

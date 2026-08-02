@@ -11,10 +11,17 @@ export async function POST(req: NextRequest) {
   }
 
   const body = await req.json().catch(() => null);
-  const { token, transaction_id, who, what, why, business_or_personal, receipt_path } = body ?? {};
-  if (!token || !transaction_id || !who || !what) {
-    return NextResponse.json({ error: "token, transaction_id, who and what are required" }, { status: 400 });
+  const { token, transaction_id, who, what, why, business_or_personal, receipt_path, voice_note_path, voice_transcript } = body ?? {};
+  const hasVoice = !!voice_note_path;
+  if (!token || !transaction_id || (!hasVoice && (!who || !what))) {
+    return NextResponse.json(
+      { error: "token, transaction_id, and either (who + what) or a voice note are required" },
+      { status: 400 }
+    );
   }
+  const whoText = who || (hasVoice ? "(see voice note)" : "");
+  const whatText = what || voice_transcript || (hasVoice ? "(see voice note)" : "");
+  const whyText = why || (hasVoice && !what ? voice_transcript ?? "" : "");
 
   if (getAuthMode() === "mock") {
     // Still run AI (local patterns) so the demo shows the full loop.
@@ -23,7 +30,7 @@ export async function POST(req: NextRequest) {
       description: body.description ?? "",
       amount: Number(body.amount ?? 0),
       date: body.date ?? "",
-      answer: { who, what, why: why ?? "", business_or_personal: business_or_personal ?? "business" },
+      answer: { who: whoText, what: whatText, why: whyText, business_or_personal: business_or_personal ?? "business" },
     });
     return NextResponse.json(
       {
@@ -52,11 +59,13 @@ export async function POST(req: NextRequest) {
 
   const { error: ansErr } = await supabase.from("transaction_answers").insert({
     transaction_id,
-    who_answer: who,
-    what_answer: what,
-    why_answer: why ?? "",
+    who_answer: whoText,
+    what_answer: whatText,
+    why_answer: whyText,
     business_or_personal: business_or_personal ?? "business",
     receipt_path: receipt_path ?? null,
+    voice_note_path: voice_note_path ?? null,
+    voice_transcript: voice_transcript ?? null,
   });
   if (ansErr) return NextResponse.json({ error: ansErr.message }, { status: 500 });
 
@@ -66,7 +75,7 @@ export async function POST(req: NextRequest) {
     description: txn.description,
     amount: Number(txn.amount),
     date: txn.date,
-    answer: { who, what, why: why ?? "", business_or_personal: business_or_personal ?? "business" },
+    answer: { who: whoText, what: whatText, why: whyText, business_or_personal: business_or_personal ?? "business" },
     memoryMatch,
   });
 

@@ -16,6 +16,36 @@ export default function LoginPage() {
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [magicSent, setMagicSent] = useState(false);
+  const [mfaFactorId, setMfaFactorId] = useState<string | null>(null);
+  const [mfaCode, setMfaCode] = useState("");
+
+  async function completeLogin() {
+    const next = new URLSearchParams(window.location.search).get("next") || "/dashboard";
+    router.push(next);
+  }
+
+  async function verifyMfa() {
+    if (!mfaFactorId || mfaCode.length < 6) return;
+    setError(null);
+    setBusy(true);
+    const { data: challenge, error: chErr } = await supabase!.auth.mfa.challenge({ factorId: mfaFactorId });
+    if (chErr) {
+      setBusy(false);
+      setError(chErr.message);
+      return;
+    }
+    const { error: vErr } = await supabase!.auth.mfa.verify({
+      factorId: mfaFactorId,
+      challengeId: challenge.id,
+      code: mfaCode,
+    });
+    setBusy(false);
+    if (vErr) {
+      setError(vErr.message);
+      return;
+    }
+    completeLogin();
+  }
 
   async function handleMagicLink() {
     setError(null);
@@ -46,12 +76,24 @@ export default function LoginPage() {
     }
     setBusy(true);
     const { error } = await supabase!.auth.signInWithPassword({ email, password });
-    setBusy(false);
     if (error) {
+      setBusy(false);
       setError(error.message);
       return;
     }
-    router.push("/dashboard");
+
+    // Step up to a TOTP challenge if this account has 2FA enrolled.
+    const { data: aal } = await supabase!.auth.mfa.getAuthenticatorAssuranceLevel();
+    setBusy(false);
+    if (aal && aal.nextLevel === "aal2" && aal.currentLevel !== "aal2") {
+      const { data: factors } = await supabase!.auth.mfa.listFactors();
+      const totp = factors?.totp?.find((f) => f.status === "verified");
+      if (totp) {
+        setMfaFactorId(totp.id);
+        return;
+      }
+    }
+    completeLogin();
   }
 
   return (
@@ -67,6 +109,26 @@ export default function LoginPage() {
               Demo mode — no Supabase configured. Continue straight to the demo dashboard.
             </p>
           )}
+          {mfaFactorId ? (
+            <div className="mt-4 space-y-3">
+              <p className="text-sm text-ink/60">Enter the 6-digit code from your authenticator app.</p>
+              <input
+                value={mfaCode}
+                onChange={(e) => setMfaCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                inputMode="numeric"
+                autoFocus
+                className="mt-1 w-full rounded-lg border border-ink/15 px-3 py-2 text-center text-lg tracking-[0.3em] focus:border-teal focus:outline-none focus:ring-1 focus:ring-teal"
+                placeholder="000000"
+              />
+              {error && <p className="text-sm text-gum">{error}</p>}
+              <button onClick={verifyMfa} disabled={busy || mfaCode.length < 6} className="btn-primary w-full">
+                {busy ? "Verifying…" : "Verify and log in"}
+              </button>
+              <button onClick={() => setMfaFactorId(null)} className="w-full text-sm text-ink/60 hover:underline">
+                Back
+              </button>
+            </div>
+          ) : (
           <div className="mt-4 space-y-3">
             <label className="block text-sm font-medium">
               Email
@@ -106,11 +168,14 @@ export default function LoginPage() {
               <Link href="/forgot-password" className="text-teal hover:underline">Forgot password?</Link>
             </p>
           </div>
-          <p className="mt-4 text-center text-sm text-ink/60">
-            No account? <Link href="/signup" className="font-medium text-teal hover:underline">Sign up</Link>
-            {" · "}
-            <Link href="/client/demo-dave" className="font-medium text-teal hover:underline">I&rsquo;m a client</Link>
-          </p>
+          )}
+          {!mfaFactorId && (
+            <p className="mt-4 text-center text-sm text-ink/60">
+              No account? <Link href="/signup" className="font-medium text-teal hover:underline">Sign up</Link>
+              {" · "}
+              <Link href="/client/demo-dave" className="font-medium text-teal hover:underline">I&rsquo;m a client</Link>
+            </p>
+          )}
         </div>
       </div>
     </main>

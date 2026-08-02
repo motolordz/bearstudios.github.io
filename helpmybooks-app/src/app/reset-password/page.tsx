@@ -64,7 +64,7 @@ export default function ResetPasswordPage() {
           <h1 className="font-display text-2xl font-semibold">Choose a new password</h1>
           {mockMode && (
             <p className="mt-2 rounded-lg bg-teal-light px-3 py-2 text-sm text-teal-dark">
-              Demo mode — password won't actually change.
+              Demo mode — password won&rsquo;t actually change.
             </p>
           )}
           {!ready && !mockMode ? (

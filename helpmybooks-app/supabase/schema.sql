@@ -268,6 +268,13 @@ alter table receipts add column if not exists ocr_amount numeric(12,2);
 alter table receipts add column if not exists ocr_gst numeric(12,2);
 alter table receipts add column if not exists ocr_confidence numeric(3,2);
 
+-- Phase 5: voice-note replies (stored in the same "receipts" storage bucket, under voice/)
+alter table transaction_answers add column if not exists voice_note_path text;
+alter table transaction_answers add column if not exists voice_transcript text;
+
+-- Phase 12: billing lifecycle (cancel-at-period-end tracking)
+alter table billing_accounts add column if not exists cancel_at_period_end boolean not null default false;
+
 -- Team invitations (ported from v3.3 firms model → organisations)
 create table if not exists team_invitations (
   id uuid primary key default gen_random_uuid(),
